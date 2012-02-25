@@ -60,8 +60,8 @@ init([]) ->
     Shutdown = brutal_kill,
     Type = worker,
 
-    AChild = {config_server, {config_server, start_link, []},
-              Restart, Shutdown, Type, [config_server]},
+    AChild = {clustmea_conf, {clustmea_conf, start_link, []},
+              Restart, Shutdown, Type, [clustmea_conf]},
 
     {ok, {SupFlags, [AChild]}}.
 

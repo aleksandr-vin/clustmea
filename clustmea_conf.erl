@@ -6,7 +6,7 @@
 %%% @end
 %%% Created : 25 Feb 2012 by Aleksandr Vinokurov <aleksandr.vin@gmail.com>
 %%%-------------------------------------------------------------------
--module(config_server).
+-module(clustmea_conf).
 
 -behaviour(gen_server).
 
