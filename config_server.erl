@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author Aleksandr Vinokurov <aleksandr.vin@gmail.com>
-%%% @copyright (C) 2012, 
+%%% @copyright (C) 2012,
 %%% @doc
 %%% Clustmea Configuration Server
 %%% @end
@@ -13,13 +13,24 @@
 %% API
 -export([start_link/0]).
 
+-export([new/0, delete/1, list/0]).
+-export([set/2, reset/2, get/1]).
+
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-	 terminate/2, code_change/3]).
+         terminate/2, code_change/3]).
 
--define(SERVER, ?MODULE). 
+-define(SERVER, ?MODULE).
 
--record(state, {}).
+-record(state,  {configs}).
+
+-record(new,    {}).
+-record(delete, {cid}).
+-record(list,   {}).
+
+-record(set,    {cid, options}).
+-record(reset,  {cid, options}).
+-record(get,    {cid}).
 
 %%%===================================================================
 %%% API
@@ -34,6 +45,67 @@
 %%--------------------------------------------------------------------
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Creates a new configuration.
+%%
+%% @spec new() -> {ok, Cid} | {error, Why}
+%% @end
+%%--------------------------------------------------------------------
+new() ->
+    gen_server:call(?SERVER, #new{}).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Deletes the configuration.
+%%
+%% @spec delete(Cid) -> ok | {error, Why}
+%% @end
+%%--------------------------------------------------------------------
+delete(Cid) ->
+    gen_server:cast(?SERVER, #delete{cid=Cid}).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns a list of available configurations.
+%%
+%% @spec list() -> {ok, CidList} | {error, Why}
+%% @end
+%%--------------------------------------------------------------------
+list() ->
+    gen_server:call(?SERVER, #list{}).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Sets option(s) of the configuration.
+%%
+%% @spec set(Cid, Options) -> ok | {error, Why}
+%%         Options -> [{OptionName, Value}]
+%% @end
+%%--------------------------------------------------------------------
+set(Cid, Options) ->
+    gen_server:cast(?SERVER, #set{cid=Cid, options=Options}).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Resets option(s) of the configuration.
+%%
+%% @spec reset(Cid, OptionNames) -> ok | {error, Why}
+%% @end
+%%--------------------------------------------------------------------
+reset(Cid, Options) ->
+    gen_server:cast(?SERVER, #reset{cid=Cid, options=Options}).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns options of the configuration.
+%%
+%% @spec get(Cid) -> {ok, Options} | {error, Why}
+%% @end
+%%--------------------------------------------------------------------
+get(Cid) ->
+    gen_server:call(?SERVER, #get{cid=Cid}).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -51,7 +123,8 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    {ok, #state{}}.
+    Configs = dict:new(),
+    {ok, #state{configs=Configs}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -67,8 +140,24 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call(_Request, _From, State) ->
-    Reply = ok,
+handle_call(#new{}, _From, State) ->
+    {state, Configs1} = State,
+    Cid = make_ref(),
+    Configs2 = dict:store(Cid, [], Configs1),
+    NewState = State#state{configs=Configs2},
+    Reply = {ok, Cid},
+    {reply, Reply, NewState};
+
+handle_call(#list{}, _From, State) ->
+    #state{configs=Configs} = State,
+    Cids = dict:fetch_keys(Configs),
+    Reply = {ok, Cids},
+    {reply, Reply, State};
+
+handle_call(#get{cid=Cid}, _From, State) ->
+    #state{configs=Configs} = State,
+    Options = dict:fetch(Cid, Configs),
+    Reply = {ok, Options},
     {reply, Reply, State}.
 
 %%--------------------------------------------------------------------
@@ -81,8 +170,27 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast(_Msg, State) ->
-    {noreply, State}.
+handle_cast(#delete{cid=Cid}, State) ->
+    {state, Configs1} = State,
+    Configs2 = dict:erase(Cid, Configs1),
+    NewState = State#state{configs=Configs2},
+    {noreply, NewState};
+
+handle_cast(#set{cid=Cid, options=Opts}, State) ->
+    {state, Configs1} = State,
+    Configs2 = dict:update(Cid,
+                           fun (Old) -> set_options(Old, Opts) end,
+                           Configs1),
+    NewState = State#state{configs=Configs2},
+    {noreply, NewState};
+
+handle_cast(#reset{cid=Cid, options=OptionNames}, State) ->
+    {state, Configs1} = State,
+    Configs2 = dict:update(Cid,
+                           fun (Old) -> reset_options(Old, OptionNames) end,
+                           Configs1),
+    NewState = State#state{configs=Configs2},
+    {noreply, NewState}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -125,3 +233,17 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+reset_options(OptionList, OptionNames) ->
+    lists:foldl(fun (OptionName, Acc) ->
+                        lists:keydelete(OptionName, 1, Acc)
+                end,
+                OptionList,
+                OptionNames).
+
+set_options(OptionList, Options) ->
+    lists:foldl(fun ({OptionName,_} = Option, Acc) ->
+                        lists:keystore(OptionName, 1, Acc, Option)
+                end,
+                OptionList,
+                Options).
