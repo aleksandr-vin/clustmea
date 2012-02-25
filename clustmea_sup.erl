@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author Aleksandr Vinokurov <aleksandr.vin@gmail.com>
-%%% @copyright (C) 2012, 
+%%% @copyright (C) 2012,
 %%% @doc
 %%% Clustmea Supervisor
 %%% @end
@@ -51,17 +51,17 @@ start_link() ->
 %%--------------------------------------------------------------------
 init([]) ->
     RestartStrategy = one_for_one,
-    MaxRestarts = 1000,
-    MaxSecondsBetweenRestarts = 3600,
+    MaxRestarts = 5,
+    MaxSecondsBetweenRestarts = 60,
 
     SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
 
     Restart = permanent,
-    Shutdown = 2000,
+    Shutdown = brutal_kill,
     Type = worker,
 
-    AChild = {'AName', {'AModule', start_link, []},
-	      Restart, Shutdown, Type, ['AModule']},
+    AChild = {config_server, {config_server, start_link, []},
+              Restart, Shutdown, Type, [config_server]},
 
     {ok, {SupFlags, [AChild]}}.
 
