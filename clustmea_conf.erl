@@ -20,6 +20,9 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
 
+%% Implementation functions -- exporting for tests
+-export([reset_options/2, set_options/2]).
+
 -define(SERVER, ?MODULE).
 
 -record(state,  {configs}).
