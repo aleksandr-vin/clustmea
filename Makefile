@@ -13,4 +13,7 @@ all: compile
 compile:	${MODS:%=%.beam}
 
 clean:
-	rm -vrf ${MODS:%=%.beam} erl_crash.dump
+	rm -vrf ${MODS:%=%.beam}
+	rm -vrf erl_crash.dump
+	rm -vrf ${MODS:%=%_SUITE.beam}
+	rm -vrf *_SUITE.beam
