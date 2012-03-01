@@ -75,12 +75,6 @@ get_config_options(_Config) ->
 %%         Out -> term()
 %% @end
 %%--------------------------------------------------------------------
-check_fun_on_data(documentation) ->
-    "Checks function M:F on Data."
-        "InOutList -> [InOut]"
-        "InOut -> {In,'=>',Out}"
-        "In -> list()"
-        "Out -> term()".
 check_fun_on_data(M, F, InOutList) ->
     lists:map(fun ({In,'=>',Out}) ->
                       Out = apply(M, F, In)
