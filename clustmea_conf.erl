@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author Aleksandr Vinokurov <aleksandr.vin@gmail.com>
-%%% @copyright (C) 2012,
+%%% @copyright (C) 2012
 %%% @doc
 %%% Clustmea Configuration Server
 %%% @end
