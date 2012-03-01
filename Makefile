@@ -5,7 +5,7 @@
 	erlc -W $<
 
 MODS =	clustmea clustmea_sup \
-	clustmea_conf clustmea_task \
+	clustmea_conf clustmea_task clustmea_reporter \
 	misc graphviz
 
 all: compile

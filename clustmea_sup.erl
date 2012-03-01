@@ -66,7 +66,10 @@ init([]) ->
     TaskChild = {clustmea_task, {clustmea_task, start_link, []},
                  Restart, Shutdown, Type, [clustmea_task]},
 
-    {ok, {SupFlags, [ConfChild, TaskChild]}}.
+    ReportsChild = {clustmea_reporter, {clustmea_reporter, start_link, []},
+                    Restart, Shutdown, Type, [clustmea_reporter]},
+
+    {ok, {SupFlags, [ConfChild, TaskChild, ReportsChild]}}.
 
 %%%===================================================================
 %%% Internal functions
