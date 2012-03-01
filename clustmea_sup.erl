@@ -50,7 +50,7 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    RestartStrategy = one_for_one,
+    RestartStrategy = rest_for_one,
     MaxRestarts = 5,
     MaxSecondsBetweenRestarts = 60,
 
@@ -60,10 +60,13 @@ init([]) ->
     Shutdown = brutal_kill,
     Type = worker,
 
-    AChild = {clustmea_conf, {clustmea_conf, start_link, []},
-              Restart, Shutdown, Type, [clustmea_conf]},
+    ConfChild = {clustmea_conf, {clustmea_conf, start_link, []},
+                 Restart, Shutdown, Type, [clustmea_conf]},
 
-    {ok, {SupFlags, [AChild]}}.
+    TaskChild = {clustmea_task, {clustmea_task, start_link, []},
+                 Restart, Shutdown, Type, [clustmea_task]},
+
+    {ok, {SupFlags, [ConfChild, TaskChild]}}.
 
 %%%===================================================================
 %%% Internal functions
