@@ -14,7 +14,7 @@
 -export([start_link/0]).
 
 -export([new/0, delete/1, list/0]).
--export([start/2, stop/1]).
+-export([start_task/2, stop_task/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -30,6 +30,11 @@
 
 -record(start,  {tid,cid}).
 -record(stop,   {tid}).
+
+-record(task,  {status}).
+
+-define(CONFIG,   clustmea_conf).
+-define(REPORTER, clustmea_reporter).
 
 %%%===================================================================
 %%% API
@@ -82,7 +87,7 @@ list() ->
 %% @spec start(Tid, Cid) -> ok | {error, Why}
 %% @end
 %%--------------------------------------------------------------------
-start(Tid, Cid) ->
+start_task(Tid, Cid) ->
     gen_server:call(?SERVER, #start{tid=Tid, cid=Cid}).
 
 %%--------------------------------------------------------------------
@@ -92,7 +97,7 @@ start(Tid, Cid) ->
 %% @spec stop(Tid) -> ok | {error, Why}
 %% @end
 %%--------------------------------------------------------------------
-stop(Tid) ->
+stop_task(Tid) ->
     gen_server:cast(?SERVER, #stop{tid=Tid}).
 
 %%%===================================================================
@@ -131,7 +136,8 @@ init([]) ->
 handle_call(#new{}, _From, State) ->
     {state, Tasks1} = State,
     Tid = make_ref(),
-    Tasks2 = dict:store(Tid, [], Tasks1),
+    NewTask = #task{status=new},
+    Tasks2 = dict:store(Tid, NewTask, Tasks1),
     NewState = State#state{tasks=Tasks2},
     Reply = {ok, Tid},
     {reply, Reply, NewState};
@@ -142,11 +148,19 @@ handle_call(#list{}, _From, State) ->
     Reply = {ok, Tids},
     {reply, Reply, State};
 
-handle_call(#start{tid=Tid, cid=Cid}, _From, State) ->
-    #state{tasks=Tasks} = State,
-    Task = dict:fetch(Tid, Tasks),
-    Reply = {ok, Tasks},
-    {reply, Reply, State}.
+handle_call(#start{tid=Tid, cid=Cid}, _From, State1) ->
+    #state{tasks=Tasks1} = State1,
+    {ok, Config} = ?CONFIG:get(Cid),
+    Tasks2 = dict:update(Tid,
+                         fun (Task) ->
+                                 NewTask = start_the_task(Config, Task),
+                                 ok = ?REPORTER:task_started(Tid, Task, Config),
+                                 NewTask
+                         end,
+                         Tasks1),
+    Reply = ok,
+    State2 = State1#state{tasks=Tasks2},
+    {reply, Reply, State2}.
 
 
 %%--------------------------------------------------------------------
@@ -165,11 +179,18 @@ handle_cast(#delete{tid=Tid}, State) ->
     NewState = State#state{tasks=Tasks2},
     {noreply, NewState};
 
-handle_cast(#stop{tid=Tid}, State) ->
-    #state{tasks=Tasks} = State,
-    Task = dict:fetch(Tid, Tasks),
-    Reply = {ok, Tasks},
-    {noreply, State}.
+handle_cast(#stop{tid=Tid}, State1) ->
+    #state{tasks=Tasks1} = State1,
+    Tasks2 = dict:update(Tid,
+                         fun (Task) ->
+                                 NewTask = stop_the_task(Task),
+                                 ok = ?REPORTER:task_stopped(Tid, directly_by_task_server),
+                                 NewTask
+                         end,
+                         Tasks1),
+    State2 = State1#state{tasks=Tasks2},
+    {noreply, State2}.
+
 
 %%--------------------------------------------------------------------
 %% @private
@@ -212,3 +233,35 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Starts the Task operation on the Config.
+%% Return a new task record indicating that Task was started.
+%%
+%% @spec start_the_task(Config, Task) -> NewTask
+%% @end
+%%--------------------------------------------------------------------
+start_the_task(_Config, Task = #task{status=Status}) when Status =/= running ->
+    %%
+    %% Here we must start the task and get the ack!
+    %%
+    NewTask = Task#task{status=running},
+    NewTask.
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Stops the Task operation.
+%% Return a new task record indicating that Task was stoppped.
+%%
+%% @spec stop_the_task(Config, Task) -> NewTask
+%% @end
+%%--------------------------------------------------------------------
+stop_the_task(Task = #task{status=Status}) when Status =:= running ->
+    %%
+    %% Here we must stop the task and get the ack!
+    %%
+    NewTask = Task#task{status=running},
+    NewTask.

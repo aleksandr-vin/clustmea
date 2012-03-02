@@ -13,6 +13,10 @@
 
 -include_lib("test_server/include/test_server.hrl").
 
+-define(CS, clustmea_conf).
+-define(TS, clustmea_task).
+-define(RS, clustmea_reporter).
+
 %%--------------------------------------------------------------------
 %% TEST SERVER CALLBACK FUNCTIONS
 %%--------------------------------------------------------------------
@@ -85,7 +89,7 @@ end_per_testcase(_TestCase, _Config) ->
 
 groups() ->
     [{simple_use_cases_group, [sequence],
-      [list_tasks]}].
+      [list_tasks, start_stop_task]}].
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -153,17 +157,35 @@ all() ->
 %% @spec TestCase(Arg) -> Descr | Spec | ok | exit() | {skip,Reason}
 %% @end
 %%--------------------------------------------------------------------
+
 list_tasks(doc) ->
-    ["Checks tasks listing"];
+    ["Checks task's listing, creation and deletion"];
 
 list_tasks(suite) ->
     [];
 
 list_tasks(_Config) when is_list(_Config) ->
-    CT = clustmea_task,
-    {ok, _Pid} = CT:start_link(),
-    {ok, []} = CT:list(),
-    {ok, Tid} = CT:new(),
-    {ok, [Tid]} = CT:list(),
-    ok = CT:delete(Tid),
-    {ok, []} = CT:list().
+    {ok, _Pid} = ?TS:start_link(),
+    {ok, []} = ?TS:list(),
+    {ok, Tid} = ?TS:new(),
+    {ok, [Tid]} = ?TS:list(),
+    ok = ?TS:delete(Tid),
+    {ok, []} = ?TS:list().
+
+
+start_stop_task(doc) ->
+    ["Checks task's starting and stopping"];
+
+start_stop_task(suite) ->
+    [];
+
+start_stop_task(_Config) when is_list(_Config) ->
+    {ok, _CSPid} = ?CS:start_link(),
+    {ok, _TSPid} = ?TS:start_link(),
+    {ok, _RSPid} = ?RS:start_link(),
+    {ok, Tid} = ?TS:new(),
+    {ok, Cid} = ?CS:new(),
+    ok = ?TS:start_task(Tid, Cid),
+    {ok, [Tid]} = ?TS:list(),
+    ok = ?TS:stop_task(Tid),
+    {ok, [Tid]} = ?TS:list().
