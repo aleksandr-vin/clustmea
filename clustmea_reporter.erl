@@ -13,7 +13,7 @@
 %% API
 -export([start_link/0, add_handler/0]).
 
--export([task_started/2, task_stopped/1]).
+-export([task_started/3, task_stopped/2]).
 
 %% gen_event callbacks
 -export([init/1, handle_event/2, handle_call/2,
@@ -23,8 +23,8 @@
 
 -record(state, {}).
 
--record(task_started,  {tid, task, time}).
--record(task_stopped,  {tid, time}).
+-record(task_started,  {tid, task, config, time}).
+-record(task_stopped,  {tid, reason, time}).
 
 %%%===================================================================
 %%% gen_event callbacks
@@ -38,7 +38,12 @@
 %% @end
 %%--------------------------------------------------------------------
 start_link() ->
-    gen_event:start_link({local, ?SERVER}).
+    case gen_event:start_link({local, ?SERVER}) of
+        {ok, Pid} ->
+            simple_reporter(),
+            {ok, Pid};
+        Error -> Error
+    end.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -54,25 +59,27 @@ add_handler() ->
 %% @doc
 %% Reports about Task started
 %%
-%% @spec task_started(Tid, Task) -> ok
+%% @spec task_started(Tid, Task, Config) -> ok
 %% @end
 %%--------------------------------------------------------------------
-task_started(Tid, Task) ->
+task_started(Tid, Task, Config) ->
     Time = sometime,
     gen_event:notify(?SERVER, #task_started{tid=Tid,
                                             task=Task,
+                                            config=Config,
                                             time=Time}).
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Reports about Task stopped
+%% Reports about Task stopped with reason
 %%
-%% @spec task_started(Tid) -> ok
+%% @spec task_started(Tid, Reason) -> ok
 %% @end
 %%--------------------------------------------------------------------
-task_stopped(Tid) ->
+task_stopped(Tid, Reason) ->
     Time = sometime,
     gen_event:notify(?SERVER, #task_stopped{tid=Tid,
+                                            reason=Reason,
                                             time=Time}).
 
 %%%===================================================================
@@ -168,3 +175,6 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+simple_reporter() ->
+    gen_event:add_handler(?SERVER, ?MODULE, []).
