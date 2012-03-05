@@ -49,3 +49,23 @@ get_ancestors(PName) when is_atom(PName) ->
     end.
 
 
+%%--------------------------------------------------------------------
+%% @doc
+%% Generates a list of Gen(State) values from calling it Quantity times
+%% starting from State0
+%%
+%% @spec generate(Gen, State0 :: state(), Quantity) -> {List, StateNext}
+%%           Gen(State :: state()) -> fun()
+%%           Quantity -> integer()
+%% @end
+%%--------------------------------------------------------------------
+generate(Gen, State0, Quantity) when is_function(Gen),
+                                     is_integer(Quantity) andalso Quantity > 0 ->
+    {OutList, OutState} = generate(Gen, State0, Quantity, []),
+    {lists:reverse(OutList), OutState}.
+
+generate(_, State, 0, OutList) -> {OutList, State};
+
+generate(Gen, State1, Quantity, OutList) ->
+    {Val,State2} = Gen(State1),
+    generate(Gen, State2, Quantity-1, [Val|OutList]).
