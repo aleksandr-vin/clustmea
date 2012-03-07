@@ -24,8 +24,8 @@ succeeding_gen(Seed1) ->
 
 
 resize_value(V, Size, Payload) ->
-    V ++ lists:duplicate(max(0, Size - length(V)),
-                         Payload).
+    string:left(V, Size, Payload).
+
 
 %%
 %% Abstract "Upload" task executor
