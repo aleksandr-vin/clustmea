@@ -69,3 +69,15 @@ generate(_, State, 0, OutList) -> {OutList, State};
 generate(Gen, State1, Quantity, OutList) ->
     {Val,State2} = Gen(State1),
     generate(Gen, State2, Quantity-1, [Val|OutList]).
+
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Make a referenced atom with Prefix
+%%
+%% @spec make_ref_atom(Prefix :: atom()) -> atom()
+%% @end
+%%--------------------------------------------------------------------
+make_ref_atom(Prefix) when is_atom(Prefix) ->
+    list_to_atom(lists:flatten([erlang:atom_to_list(Prefix),
+                                erlang:ref_to_list(make_ref())])).
