@@ -13,7 +13,7 @@
 %% API
 -export([start_link/0]).
 
--export([new/0, delete/1, list/0]).
+-export([new/1, delete/1, list/0]).
 -export([start_task/2, stop_task/1]).
 
 %% gen_server callbacks
@@ -24,14 +24,14 @@
 
 -record(state,  {tasks}).
 
--record(new,    {}).
+-record(new,    {module}).
 -record(delete, {tid}).
 -record(list,   {}).
 
 -record(start,  {tid,cid}).
 -record(stop,   {tid}).
 
--record(task,  {status}).
+-record(task,   {status,module,pid}).
 
 -define(CONFIG,   clustmea_conf).
 -define(REPORTER, clustmea_reporter).
@@ -54,11 +54,12 @@ start_link() ->
 %% @doc
 %% Creates a new task.
 %%
-%% @spec new() -> {ok, Tid} | {error, Why}
+%% @spec new(Module) -> {ok, Tid} | {error, Why}
+%%         Module -> atom()
 %% @end
 %%--------------------------------------------------------------------
-new() ->
-    gen_server:call(?SERVER, #new{}).
+new(Module) when is_atom(Module) ->
+    gen_server:call(?SERVER, #new{module=Module}).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -133,10 +134,10 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call(#new{}, _From, State) ->
+handle_call(#new{module=Module}, _From, State) ->
     {state, Tasks1} = State,
     Tid = make_ref(),
-    NewTask = #task{status=new},
+    NewTask = #task{status=new, module=Module},
     Tasks2 = dict:store(Tid, NewTask, Tasks1),
     NewState = State#state{tasks=Tasks2},
     Reply = {ok, Tid},
@@ -243,11 +244,15 @@ code_change(_OldVsn, State, _Extra) ->
 %% @spec start_the_task(Config, Task) -> NewTask
 %% @end
 %%--------------------------------------------------------------------
-start_the_task(_Config, Task = #task{status=Status}) when Status =/= running ->
+start_the_task(Config, Task = #task{status=Status}) when Status =/= running ->
     %%
     %% Here we must start the task and get the ack!
     %%
-    NewTask = Task#task{status=running},
+    Module = Task#task.module,
+    Pid = Module:start(Config),
+
+    %% Now we update the status
+    NewTask = Task#task{status=running, pid=Pid},
     NewTask.
 
 %%--------------------------------------------------------------------
@@ -256,7 +261,7 @@ start_the_task(_Config, Task = #task{status=Status}) when Status =/= running ->
 %% Stops the Task operation.
 %% Return a new task record indicating that Task was stoppped.
 %%
-%% @spec stop_the_task(Config, Task) -> NewTask
+%% @spec stop_the_task(Task) -> NewTask
 %% @end
 %%--------------------------------------------------------------------
 stop_the_task(Task = #task{status=Status}) when Status =:= running ->
