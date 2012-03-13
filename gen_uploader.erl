@@ -124,9 +124,8 @@ handle_call(_Request, _From, State) ->
 %%--------------------------------------------------------------------
 handle_cast(run, State) ->
     TaskConf = State#state.config,
-    {upploader_conf, UpploaderConf} = lists:keyfind(upploader_conf, 1, TaskConf),
-    {Seed, ValueSize, Quantity, Connection} = UpploaderConf,
-    IterationPolicy = soft,
+    {Seed, ValueSize, Quantity, Connection} = get_upploader_config(TaskConf),
+    IterationPolicy = get_policy(iteration, TaskConf, _DefaultPolicy = soft),
     Module = State#state.module,
     run(Module, IterationPolicy, Seed, ValueSize, Quantity, Connection),
     {noreply, State};
@@ -181,6 +180,21 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
+
+get_upploader_config(TaskConf) ->
+    Name = upploader_conf,
+    {Name, UpploaderConf} = lists:keyfind(Name, 1, TaskConf),
+    UpploaderConf.
+
+
+get_policy(Name, TaskConf, DefaultPolicy) ->
+    is_policy(Name),
+    case lists:keyfind(Name, 1, TaskConf) of
+        false -> DefaultPolicy;
+        {Name, Policy} -> Policy
+    end.
+
+is_policy(iteration) -> ok.
 
 %%
 %% Refactor it!
