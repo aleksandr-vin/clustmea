@@ -249,7 +249,7 @@ start_the_task(Config, Task = #task{status=Status}) when Status =/= running ->
     %% Here we must start the task and get the ack!
     %%
     Module = Task#task.module,
-    {ok, Pid} = Module:start_link(Config),
+    {ok, Pid} = Module:start_child(Config),
     ok = gen_uploader:run(Pid),
     %% Now we update the status
     NewTask = Task#task{status=running, pid=Pid},

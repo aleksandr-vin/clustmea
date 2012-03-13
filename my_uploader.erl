@@ -13,7 +13,7 @@
 -define(make_server_name, misc:make_ref_atom(?MODULE)).
 
 %% API
--export([start_link/1]).
+-export([start_link/1, start_link/2, start_child/1, start_child/2]).
 
 %% gen_uploader callbacks
 -export([make_producer/3, make_uploader/1]).
@@ -30,8 +30,23 @@
 %% @end
 %%--------------------------------------------------------------------
 start_link(Config) ->
-    gen_uploader:start_link({local, ?make_server_name}, ?MODULE, Config, []).
+    start_link({local, ?make_server_name}, Config).
 
+start_link(Name, Config) ->
+    gen_uploader:start_link(Name, ?MODULE, Config, []).
+
+
+start_child(Config) ->
+    start_child(?make_server_name, Config).
+
+start_child(Name, Config) ->
+    ChildSpec = {Name,
+                 {?MODULE, start_link, [{local, Name}, Config]},
+                 temporary,
+                 brutal_kill,
+                 worker,
+                 [?MODULE]},
+    supervisor:start_child(clustmea_sup, ChildSpec).
 
 %%%===================================================================
 %%% gen_uploader callbacks
