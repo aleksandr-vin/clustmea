@@ -1,6 +1,6 @@
--module(clustmea_worker).
+-module(kv_producers).
 
--compile(export_all).
+-export([make_succeeding_kv_producer/3]).
 
 
 make_succeeding_kv_producer(Seed, Quantity, ValueSize) ->
@@ -25,12 +25,3 @@ succeeding_gen(Seed1) ->
 
 resize_value(V, Size, Payload) ->
     string:left(V, Size, Payload).
-
-
-
-curl_uploader(Connection) ->
-    fun (K,V) ->
-            error_logger:info_msg("curl_uploader (~p connection):"
-                                  " ~p key, ~p value~n", [Connection, K, V]),
-            ok
-    end.

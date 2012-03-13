@@ -2,19 +2,25 @@
 .SUFFIXES:	.erl .beam .yrl
 
 .erl.beam:
-	erlc -W $<
+	erlc -W -pa ./ $<
+
+BEHEVIOURS = \
+	gen_uploader
 
 MODS =	clustmea clustmea_sup \
 	clustmea_conf clustmea_task clustmea_reporter \
-	clustmea_worker my_uploader gen_uploader \
+	my_uploader \
+	kv_producers \
 	misc graphviz
 
 all: compile
 
-compile:	${MODS:%=%.beam}
+compile:	${BEHEVIOURS:%=%.beam} ${MODS:%=%.beam}
 
 clean:
 	rm -vrf ${MODS:%=%.beam}
-	rm -vrf erl_crash.dump
+	rm -vrf ${BEHEVIOURS:%=%.beam}
 	rm -vrf ${MODS:%=%_SUITE.beam}
+	rm -vrf ${BEHEVIOURS:%=%_SUITE.beam}
 	rm -vrf *_SUITE.beam
+	rm -vrf erl_crash.dump

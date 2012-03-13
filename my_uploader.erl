@@ -46,7 +46,7 @@ start_link(Config) ->
 %% @end
 %%--------------------------------------------------------------------
 make_producer(Seed, Quantity, ValueSize) ->
-    clustmea_worker:make_succeeding_kv_producer(Seed, Quantity, ValueSize).
+    kv_producers:make_succeeding_kv_producer(Seed, Quantity, ValueSize).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -56,4 +56,16 @@ make_producer(Seed, Quantity, ValueSize) ->
 %% @end
 %%--------------------------------------------------------------------
 make_uploader(Connection) ->
-    clustmea_worker:curl_uploader(Connection).
+    info_uploader(Connection).
+
+
+%%
+%% Internal functions
+%%
+
+info_uploader(Connection) ->
+    fun (K,V) ->
+            error_logger:info_msg("info_uploader (~p connection):"
+                                  " ~p key, ~p value~n", [Connection, K, V]),
+            ok
+    end.
