@@ -250,7 +250,7 @@ start_the_task(Config, Task = #task{status=Status}) when Status =/= running ->
     %%
     Module = Task#task.module,
     {ok, Pid} = Module:start_link(Config),
-    ok = Module:run(Pid),
+    ok = gen_uploader:run(Pid),
     %% Now we update the status
     NewTask = Task#task{status=running, pid=Pid},
     NewTask.
@@ -268,8 +268,7 @@ stop_the_task(Task = #task{status=Status}) when Status =:= running ->
     %%
     %% Here we must stop the task and get the ack!
     %%
-    Module = Task#task.module,
     Pid = Task#task.pid,
-    ok = Module:stop(Pid),
+    ok = gen_uploader:stop(Pid),
     NewTask = Task#task{status=stopping},
     NewTask.

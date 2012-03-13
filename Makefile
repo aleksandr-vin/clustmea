@@ -6,7 +6,7 @@
 
 MODS =	clustmea clustmea_sup \
 	clustmea_conf clustmea_task clustmea_reporter \
-	clustmea_worker my_uploader \
+	clustmea_worker my_uploader gen_uploader \
 	misc graphviz
 
 all: compile
