@@ -89,7 +89,7 @@ end_per_testcase(_TestCase, _Config) ->
 
 groups() ->
     [{simple_use_cases_group, [sequence],
-      [list_tasks, start_stop_task]}].
+      [list_tasks]}].
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -167,25 +167,8 @@ list_tasks(suite) ->
 list_tasks(_Config) when is_list(_Config) ->
     {ok, _Pid} = ?TS:start_link(),
     {ok, []} = ?TS:list(),
-    {ok, Tid} = ?TS:new(),
+    {ok, Tid} = ?TS:new(absent_module),
     {ok, [Tid]} = ?TS:list(),
     ok = ?TS:delete(Tid),
     {ok, []} = ?TS:list().
 
-
-start_stop_task(doc) ->
-    ["Checks task's starting and stopping"];
-
-start_stop_task(suite) ->
-    [];
-
-start_stop_task(_Config) when is_list(_Config) ->
-    {ok, _CSPid} = ?CS:start_link(),
-    {ok, _TSPid} = ?TS:start_link(),
-    {ok, _RSPid} = ?RS:start_link(),
-    {ok, Tid} = ?TS:new(),
-    {ok, Cid} = ?CS:new(),
-    ok = ?TS:start_task(Tid, Cid),
-    {ok, [Tid]} = ?TS:list(),
-    ok = ?TS:stop_task(Tid),
-    {ok, [Tid]} = ?TS:list().
