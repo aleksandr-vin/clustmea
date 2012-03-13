@@ -23,7 +23,7 @@
 
 -record(state, {config}).
 
--record(execute, {state}).
+-record(iterate, {iteration_state}).
 
 %%%===================================================================
 %%% API
@@ -53,8 +53,17 @@ stop(Pid) when is_pid(Pid) ->
 %%
 %% Internal API
 %%
-execute(State) ->
-    gen_server:cast(self(), #execute{state=State}).
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Cast a message to oneself to perform a next step of the task iteration
+%%
+%% @spec iterate(State) -> ok
+%% @end
+%%--------------------------------------------------------------------
+iterate(State) ->
+    gen_server:cast(self(), #iterate{iteration_state=State}).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -106,11 +115,12 @@ handle_cast(run, State) ->
     TaskConf = State#state.config,
     {upploader_conf, UpploaderConf} = lists:keyfind(upploader_conf, 1, TaskConf),
     {Seed, ValueSize, Quantity, Connection} = UpploaderConf,
-    run(Seed, ValueSize, Quantity, Connection),
+    IterationPolicy = soft,
+    run(IterationPolicy, Seed, ValueSize, Quantity, Connection),
     {noreply, State};
 
-handle_cast(#execute{state=IterationState}, State) ->
-    ok = apply(fun casted_executor/4, IterationState),
+handle_cast(#iterate{iteration_state=IterationState}, State) ->
+    ok = apply(fun casted_iterator/4, IterationState),
     {noreply, State};
 
 handle_cast(stop, State) ->
@@ -159,29 +169,50 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-run(Seed, ValueSize, Quantity, Connection) ->
+run(IterationPolicy, Seed, ValueSize, Quantity, Connection) ->
     {KV_Producer, State0} =
         clustmea_worker:make_succeeding_kv_producer(Seed, Quantity, ValueSize),
     Uploader = clustmea_worker:curl_uploader(Connection),
-    casted_executor(KV_Producer, Uploader, Quantity, State0).
+    Iterator = get_iterator(IterationPolicy),
+    Iterator(KV_Producer, Uploader, Quantity, State0).
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Return iterator function (arity 4) for the specified policy
+%%
+%% @spec get_iterator(Policy) -> fun/4
+%%        Policy -> soft | hard
+%% @end
+%%--------------------------------------------------------------------
+get_iterator(soft) ->
+    fun casted_iterator/4;
+get_iterator(hard) ->
+    fun recursive_iterator/4.
+
 
 %%
-%% Recursive abstract "Upload" task executor
+%% Recursive abstract "Upload" task iterator
 %%
-recursive_executor(_,_,0,_) -> ok;
+%% Uses recursion to iterate task, thus not allowing stopping the task but killing it
+%%
+recursive_iterator(_,_,0,_) -> ok;
 
-recursive_executor(KV_Producer, Uploader, Quantity, State1) ->
+recursive_iterator(KV_Producer, Uploader, Quantity, State1) ->
     {K,V, State2} = KV_Producer(State1),
     ok = Uploader(K,V),
-    recursive_executor(KV_Producer, Uploader, Quantity-1, State2).
+    recursive_iterator(KV_Producer, Uploader, Quantity-1, State2).
 
 %%
-%% Casted abstract "Upload" task executor
+%% Casted abstract "Upload" task iterator
 %%
-casted_executor(_,_,0,_) -> ok;
+%% Uses self handle_cast for task iteration, allowing stopping the task softly
+%%
+casted_iterator(_,_,0,_) -> ok;
 
-casted_executor(KV_Producer, Uploader, Quantity, State1) ->
+casted_iterator(KV_Producer, Uploader, Quantity, State1) ->
     {K,V, State2} = KV_Producer(State1),
     ok = Uploader(K,V),
     IterationState = [KV_Producer, Uploader, Quantity-1, State2],
-    execute(IterationState).
+    iterate(IterationState).
