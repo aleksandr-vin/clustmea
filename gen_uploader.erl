@@ -124,7 +124,7 @@ handle_call(_Request, _From, State) ->
 %%--------------------------------------------------------------------
 handle_cast(run, State) ->
     TaskConf = State#state.config,
-    {Seed, ValueSize, Quantity, Connection} = get_upploader_config(TaskConf),
+    {Seed, ValueSize, Quantity, Connection} = get_uploader_config(TaskConf),
     IterationPolicy = get_policy(iteration, TaskConf, _DefaultPolicy = soft),
     Module = State#state.module,
     run(Module, IterationPolicy, Seed, ValueSize, Quantity, Connection),
@@ -181,10 +181,10 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 
-get_upploader_config(TaskConf) ->
-    Name = upploader_conf,
-    {Name, UpploaderConf} = lists:keyfind(Name, 1, TaskConf),
-    UpploaderConf.
+get_uploader_config(TaskConf) ->
+    Name = uploader_conf,
+    {Name, UploaderConf} = lists:keyfind(Name, 1, TaskConf),
+    UploaderConf.
 
 
 get_policy(Name, TaskConf, DefaultPolicy) ->

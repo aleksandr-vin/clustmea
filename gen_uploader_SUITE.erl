@@ -139,7 +139,7 @@ simple_run() ->
 %% @end
 %%--------------------------------------------------------------------
 simple_run(_Config) ->
-    Config = [{upploader_conf, {1, 2, 3, fake_connection}}],
+    Config = [{uploader_conf, {1, 2, 3, fake_connection}}],
     {ok, Pid} = start_link(Config),
     ok = gen_uploader:run(Pid),
     ok = gen_uploader:stop(Pid).
