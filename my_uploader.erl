@@ -18,6 +18,8 @@
 %% gen_uploader callbacks
 -export([make_producer/3, make_uploader/1]).
 
+-include("workers_conf.hrl").
+
 %%%
 %%%  Public API
 %%%
@@ -46,7 +48,7 @@ start_child(Name, Config) ->
                  brutal_kill,
                  worker,
                  [?MODULE]},
-    supervisor:start_child(clustmea_sup, ChildSpec).
+    supervisor:start_child(?WORKERS_SUP, ChildSpec).
 
 %%%===================================================================
 %%% gen_uploader callbacks
