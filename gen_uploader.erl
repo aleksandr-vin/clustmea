@@ -34,6 +34,8 @@
 
 -record(iterate, {iteration_state}).
 
+-include("uploader_conf.hrl").
+
 %%%===================================================================
 %%% API
 %%%===================================================================
@@ -124,10 +126,10 @@ handle_call(_Request, _From, State) ->
 %%--------------------------------------------------------------------
 handle_cast(run, State) ->
     TaskConf = State#state.config,
-    {Seed, ValueSize, Quantity, Connection} = get_uploader_config(TaskConf),
+    UploaderConf = get_uploader_config(TaskConf),
     IterationPolicy = get_policy(iteration, TaskConf, _DefaultPolicy = soft),
     Module = State#state.module,
-    run(Module, IterationPolicy, Seed, ValueSize, Quantity, Connection),
+    run(Module, IterationPolicy, UploaderConf),
     {noreply, State};
 
 handle_cast(#iterate{iteration_state=IterationState}, State) ->
@@ -199,7 +201,11 @@ is_policy(iteration) -> ok.
 %%
 %% Refactor it!
 %%
-run(Module, IterationPolicy, Seed, ValueSize, Quantity, Connection) ->
+run(Module, IterationPolicy, Conf) ->
+    Seed       = Conf#uploader_conf.seed,
+    ValueSize  = Conf#uploader_conf.value_size,
+    Quantity   = Conf#uploader_conf.quantity,
+    Connection = Conf#uploader_conf.connection,
     Iterator = get_iterator(IterationPolicy),
     {KV_Producer, State0} =
         Module:make_producer(Seed, Quantity, ValueSize),
