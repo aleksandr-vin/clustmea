@@ -82,7 +82,9 @@ make_uploader(Connection) ->
 
 info_uploader(Connection) ->
     fun (K,V) ->
+            Ks = lists:flatten(K),
+            Vs = lists:flatten(V),
             error_logger:info_msg("info_uploader (~p connection):"
-                                  " ~p key, ~p value~n", [Connection, K, V]),
+                                  " ~p key, ~p value~n", [Connection, Ks, Vs]),
             ok
     end.

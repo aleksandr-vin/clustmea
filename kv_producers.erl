@@ -18,10 +18,10 @@ make_succeeding_kv_producer(Seed, Quantity, ValueSize) ->
 
 succeeding_gen(Seed1) ->
     {I, Seed2} = {Seed1, Seed1+1},
-    Key   = io_lib:format("key-~w", [I]),
-    Value = io_lib:format("val-~w", [I]),
+    Key   = ["key-", integer_to_list(I)],
+    Value = ["val-", integer_to_list(I)],
     {Key, Value, Seed2}.
 
 
 resize_value(V, Size, Payload) ->
-    string:left(V, Size, Payload).
+    string:left(lists:flatten(V), Size, Payload).
