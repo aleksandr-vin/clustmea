@@ -9,7 +9,7 @@ BEHEVIOURS = \
 
 MODS =	clustmea clustmea_sup \
 	clustmea_conf clustmea_task clustmea_reporter \
-	my_uploader \
+	my_uploader riak_inets_uploader \
 	kv_producers \
 	misc graphviz
 
