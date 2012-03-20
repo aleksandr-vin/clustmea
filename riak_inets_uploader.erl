@@ -13,7 +13,7 @@
 -define(make_server_name, misc:make_ref_atom(?MODULE)).
 
 %% API
--export([start_link/1, start_link/2, start_child/1, start_child/2]).
+-export([start_link/2, start_link/3, start_child/2, start_child/3]).
 
 %% gen_uploader callbacks
 -export([make_producer/3, make_uploader/1]).
@@ -31,19 +31,19 @@
 %% @spec start_link(Config) -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link(Config) ->
-    start_link({local, ?make_server_name}, Config).
+start_link(Tid, Config) ->
+    start_link({local, ?make_server_name}, Tid, Config).
 
-start_link(Name, Config) ->
-    gen_uploader:start_link(Name, ?MODULE, Config, []).
+start_link(Name, Tid, Config) ->
+    gen_uploader:start_link(Name, ?MODULE, Tid, Config, []).
 
 
-start_child(Config) ->
-    start_child(?make_server_name, Config).
+start_child(Tid, Config) ->
+    start_child(?make_server_name, Tid, Config).
 
-start_child(Name, Config) ->
+start_child(Name, Tid, Config) ->
     ChildSpec = {Name,
-                 {?MODULE, start_link, [{local, Name}, Config]},
+                 {?MODULE, start_link, [{local, Name}, Tid, Config]},
                  temporary,
                  brutal_kill,
                  worker,
@@ -90,14 +90,14 @@ info_uploader(Connection) ->
     end.
 
 put(K,V) ->
-%    httpc:set_options([{verbose,verbose}]),
-    ContentType = "text/plain",
-    RequestHeaders = [],
-    RequestBody = V,
-    RIAKNodeURL = "http://localhost:8091/riak/",
-    RIAKPutOptions = [],
+    RIAKClientID = ?MODULE_STRING,
     Bucket = ?MODULE_STRING,
+    RIAKPutOptions = [],
+    RIAKNodeURL = "http://localhost:8091/riak/",
+    RequestBody = V,
     URL = lists:flatten([RIAKNodeURL, Bucket, "/", K, RIAKPutOptions]),
+    RequestHeaders = [{"X-Riak-ClientId", RIAKClientID}],
+    ContentType = "text/plain",
     Request = {URL, RequestHeaders, ContentType, RequestBody},
     {ok, {{_Version, 204, _ReasonPhrase}, _Headers, _Body}} =
         httpc:request(put, Request, [], []),

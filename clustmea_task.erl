@@ -14,7 +14,7 @@
 -export([start_link/0]).
 
 -export([new/1, delete/1, list/0]).
--export([start_task/2, stop_task/1]).
+-export([start_task/2, stop_task/1, stop_task/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -29,7 +29,7 @@
 -record(list,   {}).
 
 -record(start,  {tid,cid}).
--record(stop,   {tid}).
+-record(stop,   {tid,reason}).
 
 -record(task,   {status,module,pid}).
 
@@ -95,11 +95,14 @@ start_task(Tid, Cid) ->
 %% @doc
 %% Stops the task.
 %%
-%% @spec stop(Tid) -> ok | {error, Why}
+%% @spec stop(Tid, Reason) -> ok | {error, Why}
 %% @end
 %%--------------------------------------------------------------------
+stop_task(Tid, Reason) ->
+    gen_server:cast(?SERVER, #stop{tid=Tid, reason=Reason}).
+
 stop_task(Tid) ->
-    gen_server:cast(?SERVER, #stop{tid=Tid}).
+    stop_task(Tid, _Reason = unknown).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -154,7 +157,7 @@ handle_call(#start{tid=Tid, cid=Cid}, _From, State1) ->
     {ok, Config} = ?CONFIG:get(Cid),
     Tasks2 = dict:update(Tid,
                          fun (Task) ->
-                                 NewTask = start_the_task(Config, Task),
+                                 NewTask = start_the_task(Config, Task, Tid),
                                  ok = ?REPORTER:task_started(Tid, Task, Config),
                                  NewTask
                          end,
@@ -180,12 +183,12 @@ handle_cast(#delete{tid=Tid}, State) ->
     NewState = State#state{tasks=Tasks2},
     {noreply, NewState};
 
-handle_cast(#stop{tid=Tid}, State1) ->
+handle_cast(#stop{tid=Tid, reason=Reason}, State1) ->
     #state{tasks=Tasks1} = State1,
     Tasks2 = dict:update(Tid,
                          fun (Task) ->
-                                 NewTask = stop_the_task(Task),
-                                 ok = ?REPORTER:task_stopped(Tid, directly_by_task_server),
+                                 NewTask = stop_the_task(Task, Reason),
+                                 ok = ?REPORTER:task_stopped(Tid, {directly_by_task_server, Reason}),
                                  NewTask
                          end,
                          Tasks1),
@@ -241,15 +244,15 @@ code_change(_OldVsn, State, _Extra) ->
 %% Starts the Task operation on the Config.
 %% Return a new task record indicating that Task was started.
 %%
-%% @spec start_the_task(Config, Task) -> NewTask
+%% @spec start_the_task(Config, Task, Tid) -> NewTask
 %% @end
 %%--------------------------------------------------------------------
-start_the_task(Config, Task = #task{status=Status}) when Status =/= running ->
+start_the_task(Config, Task = #task{status=Status}, Tid) when Status =/= running ->
     %%
     %% Here we must start the task and get the ack!
     %%
     Module = Task#task.module,
-    {ok, Pid} = Module:start_child(Config),
+    {ok, Pid} = Module:start_child(Tid, Config),
     ok = gen_uploader:run(Pid),
     %% Now we update the status
     NewTask = Task#task{status=running, pid=Pid},
@@ -264,11 +267,11 @@ start_the_task(Config, Task = #task{status=Status}) when Status =/= running ->
 %% @spec stop_the_task(Task) -> NewTask
 %% @end
 %%--------------------------------------------------------------------
-stop_the_task(Task = #task{status=Status}) when Status =:= running ->
+stop_the_task(Task = #task{status=Status}, Reason) when Status =:= running ->
     %%
     %% Here we must stop the task and get the ack!
     %%
     Pid = Task#task.pid,
-    ok = gen_uploader:stop(Pid),
+    ok = gen_uploader:stop(Pid, Reason),
     NewTask = Task#task{status=stopping},
     NewTask.

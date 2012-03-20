@@ -20,9 +20,9 @@
     UploaderFunction :: term().
 
 %% API
--export([start_link/4]).
+-export([start_link/5]).
 
--export([run/1, stop/1]).
+-export([run/1, stop/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -30,11 +30,15 @@
 
 
 
--record(state, {config,module}).
+-record(state, {config,module,tid}).
+
+-record(stop, {reason}).
 
 -record(iterate, {iteration_state}).
 
 -include("uploader_conf.hrl").
+
+-define(REPORTER, clustmea_reporter).
 
 %%%===================================================================
 %%% API
@@ -46,11 +50,11 @@
 %%
 %% Name and Options are transparent arguments for gen_server:start_link/4
 %%
-%% @spec start_link(Name, Module, Args, Options) -> {ok, Pid} | ignore | {error, Error}
+%% @spec start_link(Name, Module, Tid, Args, Options) -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link(Name, Module, Args, Options) ->
-    gen_server:start_link(Name, ?MODULE, {Module,Args}, Options).
+start_link(Name, Module, Tid, Args, Options) ->
+    gen_server:start_link(Name, ?MODULE, {Module,Tid,Args}, Options).
 
 
 %%
@@ -59,8 +63,8 @@ start_link(Name, Module, Args, Options) ->
 run(Pid) when is_pid(Pid) ->
     gen_server:cast(Pid, run).
 
-stop(Pid) when is_pid(Pid) ->
-    gen_server:cast(Pid, stop).
+stop(Pid, Reason) when is_pid(Pid) ->
+    gen_server:cast(Pid, #stop{reason=Reason}).
 
 
 %%
@@ -78,6 +82,19 @@ stop(Pid) when is_pid(Pid) ->
 iterate(State) ->
     gen_server:cast(self(), #iterate{iteration_state=State}).
 
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Cast a message to oneself to perform task finalization stuff
+%%
+%% @spec finish() -> ok
+%% @end
+%%--------------------------------------------------------------------
+finish() ->
+    stop(self(), normal).
+
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
@@ -93,8 +110,8 @@ iterate(State) ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init({Module,Config}) ->
-    {ok, #state{config=Config, module=Module}}.
+init({Module,Tid,Config}) ->
+    {ok, #state{config=Config, module=Module, tid=Tid}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -136,7 +153,8 @@ handle_cast(#iterate{iteration_state=IterationState}, State) ->
     ok = apply(fun casted_iterator/4, IterationState),
     {noreply, State};
 
-handle_cast(stop, State) ->
+handle_cast(#stop{reason=Reason}, State) ->
+    ok = ?REPORTER:task_stopped(State#state.tid, Reason),
     {stop, normal, State}.
 
 
@@ -233,7 +251,7 @@ get_iterator(hard) ->
 %%
 %% Uses recursion to iterate task, thus not allowing stopping the task but killing it
 %%
-recursive_iterator(_,_,0,_) -> ok;
+recursive_iterator(_,_,0,_) -> finish();
 
 recursive_iterator(KV_Producer, Uploader, Quantity, State1) ->
     {K,V, State2} = KV_Producer(State1),
@@ -245,7 +263,7 @@ recursive_iterator(KV_Producer, Uploader, Quantity, State1) ->
 %%
 %% Uses self handle_cast for task iteration, allowing stopping the task softly
 %%
-casted_iterator(_,_,0,_) -> ok;
+casted_iterator(_,_,0,_) -> finish();
 
 casted_iterator(KV_Producer, Uploader, Quantity, State1) ->
     {K,V, State2} = KV_Producer(State1),
