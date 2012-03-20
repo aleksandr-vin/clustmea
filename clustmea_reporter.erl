@@ -63,7 +63,7 @@ add_handler() ->
 %% @end
 %%--------------------------------------------------------------------
 task_started(Tid, Task, Config) ->
-    Time = sometime,
+    Time = {timestamp, now()},
     gen_event:notify(?SERVER, #task_started{tid=Tid,
                                             task=Task,
                                             config=Config,
@@ -77,7 +77,7 @@ task_started(Tid, Task, Config) ->
 %% @end
 %%--------------------------------------------------------------------
 task_stopped(Tid, Reason) ->
-    Time = sometime,
+    Time = {timestamp, now()},
     gen_event:notify(?SERVER, #task_stopped{tid=Tid,
                                             reason=Reason,
                                             time=Time}).
